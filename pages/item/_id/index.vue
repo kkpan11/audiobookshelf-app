@@ -28,7 +28,10 @@
       <div class="relative z-10 px-3 py-4">
         <!-- title -->
         <div class="text-center mb-2">
-          <h1 class="text-xl font-semibold">{{ title }}</h1>
+          <div class="flex items-center justify-center">
+            <h1 class="text-xl font-semibold">{{ title }}</h1>
+            <widgets-explicit-indicator v-if="isExplicit" />
+          </div>
           <p v-if="subtitle" class="text-fg text-base">{{ subtitle }}</p>
         </div>
 
@@ -168,6 +171,7 @@
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import { FastAverageColor } from 'fast-average-color'
+import cellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
 export default {
   async asyncData({ store, params, redirect, app, query }) {
@@ -218,6 +222,7 @@ export default {
       startingDownload: false
     }
   },
+  mixins: [cellularPermissionHelpers],
   computed: {
     isIos() {
       return this.$platform === 'ios'
@@ -436,6 +441,9 @@ export default {
     isInvalid() {
       return this.libraryItem.isInvalid
     },
+    isExplicit() {
+      return !!this.mediaMetadata.explicit
+    },
     showPlay() {
       return !this.isMissing && !this.isInvalid && (this.numTracks || this.episodes.length)
     },
@@ -601,9 +609,11 @@ export default {
       this.download(localFolder)
     },
     async downloadClick() {
-      if (this.downloadItem || this.startingDownload) {
-        return
-      }
+      if (this.downloadItem || this.startingDownload)  return
+
+      const hasPermission = await this.checkCellularPermission('download')
+      if (!hasPermission) return
+
       this.startingDownload = true
       setTimeout(() => {
         this.startingDownload = false
