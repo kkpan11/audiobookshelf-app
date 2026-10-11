@@ -19,13 +19,13 @@
         </ul>
         <div class="flex items-center justify-center py-3 border-t border-fg/10">
           <button :disabled="!canDecrement" @click="decrement" class="icon-num-btn w-8 h-8 text-fg-muted rounded border border-border flex items-center justify-center">
-            <span class="material-icons">remove</span>
+            <span class="material-symbols">remove</span>
           </button>
           <div class="w-24 text-center">
             <p class="text-xl">{{ playbackRate }}<span class="text-lg">⨯</span></p>
           </div>
           <button :disabled="!canIncrement" @click="increment" class="icon-num-btn w-8 h-8 text-fg-muted rounded border border-border flex items-center justify-center">
-            <span class="material-icons">add</span>
+            <span class="material-symbols">add</span>
           </button>
         </div>
       </div>
@@ -71,7 +71,7 @@ export default {
       }
     },
     rates() {
-      return [0.5, 1, 1.2, 1.5, 2, 3]
+      return [0.5, 1, 1.2, 1.5, 1.7, 2, 3]
     },
     canIncrement() {
       return this.playbackRate + 0.1 <= this.MAX_SPEED

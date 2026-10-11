@@ -22,7 +22,7 @@ extension AudioPlayer {
         // Return the player time until sleep
         var sleepTimeRemaining: Double? = nil
         if let chapterStopAt = self.sleepTimeChapterStopAt {
-            sleepTimeRemaining = (chapterStopAt - currentTime) / Double(self.rate > 0 ? self.rate : 1.0)
+            sleepTimeRemaining = (chapterStopAt - currentTime) / Double(self.rateManager.rate > 0 ? self.rateManager.rate : 1.0)
         } else if self.isCountdownSleepTimerSet() {
             sleepTimeRemaining = self.sleepTimeRemaining
         }
@@ -31,7 +31,7 @@ extension AudioPlayer {
     }
     
     public func setSleepTimer(secondsUntilSleep: Double) {
-        logger.log("SLEEP TIMER: Sleeping in \(secondsUntilSleep) seconds")
+        AbsLogger.info(message: "SLEEP TIMER: Sleeping in \(secondsUntilSleep) seconds")
         self.removeSleepTimer()
         self.sleepTimeRemaining = secondsUntilSleep
         
@@ -53,7 +53,7 @@ extension AudioPlayer {
         guard let currentTime = self.getCurrentTime() else { return }
         guard stopAt >= currentTime else { return }
         
-        logger.log("SLEEP TIMER: Scheduling for chapter end \(stopAt)")
+        AbsLogger.info(message: "SLEEP TIMER: Scheduling for chapter end \(stopAt)")
         
         // Schedule the observation time
         self.sleepTimeChapterStopAt = stopAt
@@ -125,7 +125,11 @@ extension AudioPlayer {
         if var sleepTimeRemaining = self.sleepTimeRemaining {
             sleepTimeRemaining -= 1
             self.sleepTimeRemaining = sleepTimeRemaining
-            
+          
+            if sleepTimeRemaining == 60 && self.isSleepTimerFadeOutEnabled() {
+                self.startFadeOut()
+            }
+          
             // Handle the sleep if the timer has expired
             if sleepTimeRemaining <= 0 {
                 self.handleSleepEnd()
@@ -134,7 +138,7 @@ extension AudioPlayer {
     }
     
     private func handleSleepEnd() {
-        logger.log("SLEEP TIMER: Pausing audio")
+        AbsLogger.info(message: "SLEEP TIMER: Pausing audio")
         self.pause()
         self.removeSleepTimer()
     }
@@ -154,5 +158,9 @@ extension AudioPlayer {
     private func isChapterSleepTimerSet() -> Bool {
         return self.sleepTimeChapterStopAt != nil
     }
-    
+  
+    private func isSleepTimerFadeOutEnabled() -> Bool {
+      let deviceSettings = Database.shared.getDeviceSettings()
+      return !deviceSettings.disableSleepTimerFadeOut
+    }
 }

@@ -6,18 +6,13 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
-import android.util.Log
-import com.audiobookshelf.app.BuildConfig
-import com.audiobookshelf.app.R
-import com.bumptech.glide.Glide
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import kotlinx.coroutines.*
 
-const val NOTIFICATION_LARGE_ICON_SIZE = 144 // px
-
-class AbMediaDescriptionAdapter constructor(private val controller: MediaControllerCompat, private val playerNotificationService: PlayerNotificationService) : PlayerNotificationManager.MediaDescriptionAdapter {
+class AbMediaDescriptionAdapter (private val controller: MediaControllerCompat, private val playerNotificationService: PlayerNotificationService) : PlayerNotificationManager.MediaDescriptionAdapter {
   private val tag = "MediaDescriptionAdapter"
 
   private var currentIconUri: Uri? = null
@@ -38,12 +33,19 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
     callback: PlayerNotificationManager.BitmapCallback
   ): Bitmap? {
     val albumArtUri = controller.metadata.description.iconUri
+    val albumBitmap = controller.metadata.description.iconBitmap
+      ?: controller.metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART)
+
+    // Reuse bitmap from queue navigator (local) or PlaybackSession.resolveCoverBitmapAsync (streaming)
+    // For local cover images, bitmap is set in PlayerNotificationService TimelineQueueNavigator.getMediaDescription
+    if (albumBitmap != null) {
+      return albumBitmap
+    }
 
     return if (currentIconUri != albumArtUri || currentBitmap == null) {
       // Cache the bitmap for the current audiobook so that successive calls to
       // `getCurrentLargeIcon` don't cause the bitmap to be recreated.
       currentIconUri = albumArtUri
-      Log.d(tag, "ART $currentIconUri")
 
       if (currentIconUri.toString().startsWith("content://")) {
         currentBitmap = if (Build.VERSION.SDK_INT < 28) {
@@ -57,37 +59,14 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
       } else {
         serviceScope.launch {
           currentBitmap = albumArtUri?.let {
-            resolveUriAsBitmap(it)
+            resolveUriAsBitmap(playerNotificationService, it)
           }
           currentBitmap?.let { callback.onBitmap(it) }
         }
         null
       }
-
     } else {
       currentBitmap
-    }
-  }
-
-  private suspend fun resolveUriAsBitmap(uri: Uri): Bitmap? {
-    return withContext(Dispatchers.IO) {
-      try {
-        Glide.with(playerNotificationService)
-          .asBitmap()
-          .load(uri)
-          .placeholder(R.drawable.icon)
-          .error(R.drawable.icon)
-          .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
-          .get()
-      } catch (e: Exception) {
-        e.printStackTrace()
-
-        Glide.with(playerNotificationService)
-          .asBitmap()
-          .load(Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon))
-          .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
-          .get()
-      }
     }
   }
 }

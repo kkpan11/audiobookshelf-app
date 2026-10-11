@@ -9,7 +9,9 @@ class ServerSocket extends EventEmitter {
     this.socket = null
     this.connected = false
     this.serverAddress = null
-    this.token = null
+    this.isAuthenticated = false
+
+    this.lastReconnectAttemptTime = 0
   }
 
   $on(evt, callback) {
@@ -24,16 +26,20 @@ class ServerSocket extends EventEmitter {
 
   connect(serverAddress, token) {
     this.serverAddress = serverAddress
-    this.token = token
 
-    console.log('[SOCKET] Connect Socket', this.serverAddress)
+    const serverUrl = new URL(serverAddress)
+    const serverHost = `${serverUrl.protocol}//${serverUrl.host}`
+    const serverPath = serverUrl.pathname === '/' ? '' : serverUrl.pathname
+
+    console.log(`[SOCKET] Connecting to ${serverHost} with path ${serverPath}/socket.io`)
 
     const socketOptions = {
       transports: ['websocket'],
       upgrade: false,
-      // reconnectionAttempts: 3
+      path: `${serverPath}/socket.io`,
+      reconnectionDelayMax: 15000
     }
-    this.socket = io(this.serverAddress, socketOptions)
+    this.socket = io(serverHost, socketOptions)
     this.setSocketListeners()
   }
 
@@ -46,9 +52,18 @@ class ServerSocket extends EventEmitter {
     this.socket.on('connect', this.onConnect.bind(this))
     this.socket.on('disconnect', this.onDisconnect.bind(this))
     this.socket.on('init', this.onInit.bind(this))
+    this.socket.on('auth_failed', this.onAuthFailed.bind(this))
     this.socket.on('user_updated', this.onUserUpdated.bind(this))
     this.socket.on('user_item_progress_updated', this.onUserItemProgressUpdated.bind(this))
     this.socket.on('playlist_added', this.onPlaylistAdded.bind(this))
+    this.socket.io.on('reconnect_attempt', this.onReconnectAttempt.bind(this))
+    this.socket.io.on('reconnect_error', this.onReconnectError.bind(this))
+    this.socket.io.on('reconnect_failed', this.onReconnectFailed.bind(this))
+  }
+
+  sendAuthenticate() {
+    // Required to connect a socket to a user
+    this.socket.emit('auth', this.$store.getters['user/getToken'])
   }
 
   removeListeners() {
@@ -64,7 +79,21 @@ class ServerSocket extends EventEmitter {
     this.connected = true
     this.$store.commit('setSocketConnected', true)
     this.emit('connection-update', true)
-    this.socket.emit('auth', this.token) // Required to connect a user with their socket
+    this.sendAuthenticate()
+  }
+
+  onReconnectAttempt(attemptNumber) {
+    const timeSinceLastReconnectAttempt = this.lastReconnectAttemptTime ? Date.now() - this.lastReconnectAttemptTime : 0
+    this.lastReconnectAttemptTime = Date.now()
+    console.log(`[SOCKET] Reconnect attempt ${attemptNumber} ${timeSinceLastReconnectAttempt > 0 ? `after ${timeSinceLastReconnectAttempt}ms` : ''}`)
+  }
+
+  onReconnectError(error) {
+    console.log('[SOCKET] Reconnect error', error)
+  }
+
+  onReconnectFailed(error) {
+    console.log('[SOCKET] Reconnect failed', error)
   }
 
   onDisconnect(reason) {
@@ -77,6 +106,12 @@ class ServerSocket extends EventEmitter {
   onInit(data) {
     console.log('[SOCKET] Initial socket data received', data)
     this.emit('initialized', true)
+    this.isAuthenticated = true
+  }
+
+  onAuthFailed(data) {
+    console.log('[SOCKET] Auth failed: ' + (data?.message || 'Unknown reason'))
+    this.isAuthenticated = false
   }
 
   onUserUpdated(data) {

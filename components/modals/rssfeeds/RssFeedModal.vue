@@ -3,7 +3,7 @@
     <div class="flex items-end justify-end h-24 pr-4 pb-2">
       <!-- <h1 class="text-lg">RSS Feed</h1> -->
       <button class="flex" @click="show = false">
-        <span class="material-icons">close</span>
+        <span class="material-symbols">close</span>
       </button>
     </div>
 
@@ -12,9 +12,9 @@
         <div class="w-full relative">
           <h1 class="text-lg mb-4">{{ $strings.HeaderRSSFeedIsOpen }}</h1>
 
-          <ui-text-input v-model="currentFeed.feedUrl" class="text-sm" readonly />
+          <ui-text-input v-model="fullFeedUrl" class="text-sm" readonly />
 
-          <span class="material-icons absolute right-2 bottom-2 p-0.5 text-base" :class="linkCopied ? 'text-success' : 'text-fg-muted'" @click="copyToClipboard(currentFeed.feedUrl)">{{ linkCopied ? 'done' : 'content_copy' }}</span>
+          <span class="material-symbols absolute right-2 bottom-2 p-0.5 text-base" :class="linkCopied ? 'text-success' : 'text-fg-muted'" @click="copyToClipboard(fullFeedUrl)">{{ linkCopied ? 'check' : 'content_copy' }}</span>
         </div>
 
         <div v-if="currentFeed.meta" class="mt-5">
@@ -118,6 +118,10 @@ export default {
     },
     demoFeedUrl() {
       return `${this.serverAddress}/feed/${this.newFeedSlug}`
+    },
+    fullFeedUrl() {
+      if (!this.currentFeed) return ''
+      return `${this.serverAddress}${this.currentFeed.feedUrl}`
     },
     isHttp() {
       return !!this.serverAddress?.startsWith('http://')

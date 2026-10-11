@@ -33,6 +33,9 @@ class AbsAudioPlayer : Plugin() {
 
   private var isCastAvailable:Boolean = false
 
+  // Track foreground state to avoid flooding WebView with events while backgrounded
+  private var isInForeground: Boolean = true
+
   override fun load() {
     mainActivity = (activity as MainActivity)
     apiHandler = ApiHandler(mainActivity)
@@ -60,6 +63,8 @@ class AbsAudioPlayer : Plugin() {
         }
 
         override fun onMetadata(metadata: PlaybackMetadata) {
+          // Skip frequent metadata updates when app is backgrounded to prevent event queue buildup
+          if (!isInForeground) return
           notifyListeners("onMetadata", JSObject(jacksonMapper.writeValueAsString(metadata)))
         }
 
@@ -68,6 +73,8 @@ class AbsAudioPlayer : Plugin() {
         }
 
         override fun onSleepTimerSet(sleepTimeRemaining: Int, isAutoSleepTimer:Boolean) {
+          // Skip sleep timer updates when app is backgrounded to prevent event queue buildup
+          if (!isInForeground) return
           val ret = JSObject()
           ret.put("value", sleepTimeRemaining)
           ret.put("isAuto", isAutoSleepTimer)
@@ -75,6 +82,8 @@ class AbsAudioPlayer : Plugin() {
         }
 
         override fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress) {
+          // Skip progress updates when app is backgrounded to prevent event queue buildup
+          if (!isInForeground) return
           notifyListeners("onLocalMediaProgressUpdate", JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
         }
 
@@ -116,6 +125,32 @@ class AbsAudioPlayer : Plugin() {
     val ret = JSObject()
     ret.put("value", value)
     notifyListeners(evtName, ret)
+  }
+
+  override fun handleOnDestroy() {
+    castManager?.detach()
+    super.handleOnDestroy()
+  }
+
+  override fun handleOnPause() {
+    super.handleOnPause()
+    isInForeground = false
+  }
+
+  override fun handleOnResume() {
+    super.handleOnResume()
+    isInForeground = true
+
+    // Send current state to UI after resume to sync up (with small delay to let WebView fully resume)
+    if (::playerNotificationService.isInitialized && playerNotificationService.currentPlaybackSession != null) {
+      Handler(Looper.getMainLooper()).postDelayed({
+        playerNotificationService.sendClientMetadata(PlayerState.READY)
+        playerNotificationService.sleepTimerManager.sendCurrentSleepTimerState()
+        playerNotificationService.mediaProgressSyncer.currentLocalMediaProgress?.let {
+          playerNotificationService.clientEventEmitter?.onLocalMediaProgressUpdate(it)
+        }
+      }, 100)
+    }
   }
 
   private fun initCastManager() {
@@ -180,7 +215,8 @@ class AbsAudioPlayer : Plugin() {
     val playWhenReady = call.getBoolean("playWhenReady") == true
     val playbackRate = call.getFloat("playbackRate",1f) ?: 1f
     val startTimeOverride = call.getDouble("startTime")
-    Log.d(tag, "prepareLibraryItem lid=$libraryItemId, startTimeOverride=$startTimeOverride, playbackRate=$playbackRate")
+
+    AbsLogger.info("AbsAudioPlayer", "prepareLibraryItem: lid=$libraryItemId, startTimeOverride=$startTimeOverride, playbackRate=$playbackRate")
 
     if (libraryItemId.isEmpty()) {
       Log.e(tag, "Invalid call to play library item no library item id")
@@ -197,6 +233,9 @@ class AbsAudioPlayer : Plugin() {
             Log.e(tag, "prepareLibraryItem: Podcast episode not found $episodeId")
             return call.resolve(JSObject("{\"error\":\"Podcast episode not found\"}"))
           }
+        }
+        if (!it.hasTracks(mainActivity, episode)) {
+          return call.resolve(JSObject("{\"error\":\"No audio files found on device. Download book again to fix.\"}"))
         }
 
         Handler(Looper.getMainLooper()).post {
@@ -291,10 +330,10 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun seek(call: PluginCall) {
-    val time:Int = call.getInt("value", 0) ?: 0 // Value in seconds
+    val time: Double = call.getDouble("value", 0.0) ?: 0.0 // Value in seconds, fractional
     Log.d(tag, "seek action to $time")
     Handler(Looper.getMainLooper()).post {
-      playerNotificationService.seekPlayer(time * 1000L) // convert to ms
+      playerNotificationService.seekPlayer((time * 1000L).toLong())
       call.resolve()
     }
   }

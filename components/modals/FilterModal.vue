@@ -14,7 +14,7 @@
                 <span class="font-normal ml-3 block truncate text-lg">{{ item.text }}</span>
               </div>
               <div v-if="item.sublist" class="absolute right-1 top-0 bottom-0 h-full flex items-center">
-                <span class="material-icons text-2xl">arrow_right</span>
+                <span class="material-symbols text-2xl">arrow_right</span>
               </div>
             </li>
           </template>
@@ -22,7 +22,7 @@
         <ul v-show="sublist" class="h-full w-full rounded-lg" role="listbox" aria-labelledby="listbox-label">
           <li class="text-fg select-none relative py-3 pl-9 cursor-pointer" role="option" @click="sublist = null">
             <div class="absolute left-1 top-0 bottom-0 h-full flex items-center">
-              <span class="material-icons text-2xl">arrow_left</span>
+              <span class="material-symbols text-2xl">arrow_left</span>
             </div>
             <div class="flex items-center justify-between">
               <span class="font-normal ml-3 block truncate text-lg">{{ $strings.ButtonBack }}</span>
@@ -54,8 +54,39 @@ export default {
   },
   data() {
     return {
-      sublist: null,
-      bookItems: [
+      sublist: null
+    }
+  },
+  watch: {
+    show(newVal) {
+      if (!newVal) {
+        if (this.sublist && !this.selectedItemSublist) this.sublist = null
+        if (!this.sublist && this.selectedItemSublist) this.sublist = this.selectedItemSublist
+      }
+    }
+  },
+  computed: {
+    show: {
+      get() {
+        return this.value
+      },
+      set(val) {
+        this.$emit('input', val)
+      }
+    },
+    selected: {
+      get() {
+        return this.filterBy
+      },
+      set(val) {
+        this.$emit('update:filterBy', val)
+      }
+    },
+    userCanAccessExplicitContent() {
+      return this.$store.getters['user/getUserCanAccessExplicitContent']
+    },
+    bookItems() {
+      const items = [
         {
           text: this.$strings.LabelAll,
           value: 'all'
@@ -104,9 +135,26 @@ export default {
           text: this.$strings.ButtonIssues,
           value: 'issues',
           sublist: false
+        },
+        {
+          text: this.$strings.LabelRSSFeedOpen,
+          value: 'feed-open',
+          sublist: false
         }
-      ],
-      podcastItems: [
+      ]
+
+      if (this.userCanAccessExplicitContent) {
+        items.push({
+          text: this.$strings.LabelExplicit,
+          value: 'explicit',
+          sublist: false
+        })
+      }
+
+      return items
+    },
+    podcastItems() {
+      const items = [
         {
           text: this.$strings.LabelAll,
           value: 'all'
@@ -120,34 +168,23 @@ export default {
           text: this.$strings.LabelTag,
           value: 'tags',
           sublist: true
+        },
+        {
+          text: this.$strings.LabelRSSFeedOpen,
+          value: 'feed-open',
+          sublist: false
         }
       ]
-    }
-  },
-  watch: {
-    show(newVal) {
-      if (!newVal) {
-        if (this.sublist && !this.selectedItemSublist) this.sublist = null
-        if (!this.sublist && this.selectedItemSublist) this.sublist = this.selectedItemSublist
+
+      if (this.userCanAccessExplicitContent) {
+        items.push({
+          text: this.$strings.LabelExplicit,
+          value: 'explicit',
+          sublist: false
+        })
       }
-    }
-  },
-  computed: {
-    show: {
-      get() {
-        return this.value
-      },
-      set(val) {
-        this.$emit('input', val)
-      }
-    },
-    selected: {
-      get() {
-        return this.filterBy
-      },
-      set(val) {
-        this.$emit('update:filterBy', val)
-      }
+
+      return items
     },
     isPodcast() {
       return this.$store.getters['libraries/getCurrentLibraryMediaType'] === 'podcast'
@@ -210,7 +247,7 @@ export default {
       ]
     },
     sublistItems() {
-      return (this[this.sublist] || []).map((item) => {
+      const sublistItems = (this[this.sublist] || []).map((item) => {
         if (typeof item === 'string') {
           return {
             text: item,
@@ -223,6 +260,13 @@ export default {
           }
         }
       })
+      if (this.sublist === 'series') {
+        sublistItems.unshift({
+          text: this.$strings.MessageNoSeries,
+          value: this.$encode('no-series')
+        })
+      }
+      return sublistItems
     },
     filterData() {
       return this.$store.state.libraries.filterData || {}

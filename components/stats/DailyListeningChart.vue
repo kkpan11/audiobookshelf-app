@@ -33,22 +33,22 @@
     <div class="flex justify-between pt-12">
       <div>
         <p class="text-sm text-center">{{ $strings.LabelStatsWeekListening }}</p>
-        <p class="text-5xl font-semibold text-center" style="line-height: 0.85">{{ totalMinutesListeningThisWeek }}</p>
+        <p class="text-5xl font-semibold text-center" style="line-height: 0.85">{{ $formatNumber(totalMinutesListeningThisWeek) }}</p>
         <p class="text-sm text-center">{{ $strings.LabelStatsMinutes }}</p>
       </div>
       <div>
         <p class="text-sm text-center">{{ $strings.LabelStatsDailyAverage }}</p>
-        <p class="text-5xl font-semibold text-center" style="line-height: 0.85">{{ averageMinutesPerDay }}</p>
+        <p class="text-5xl font-semibold text-center" style="line-height: 0.85">{{ $formatNumber(averageMinutesPerDay) }}</p>
         <p class="text-sm text-center">{{ $strings.LabelStatsMinutes }}</p>
       </div>
       <div>
         <p class="text-sm text-center">{{ $strings.LabelStatsBestDay }}</p>
-        <p class="text-5xl font-semibold text-center" style="line-height: 0.85">{{ mostListenedDay }}</p>
+        <p class="text-5xl font-semibold text-center" style="line-height: 0.85">{{ $formatNumber(mostListenedDay) }}</p>
         <p class="text-sm text-center">{{ $strings.LabelStatsMinutes }}</p>
       </div>
       <div>
         <p class="text-sm text-center">{{ $strings.LabelStatsDays }}</p>
-        <p class="text-5xl font-semibold text-center" style="line-height: 0.85">{{ daysInARow }}</p>
+        <p class="text-5xl font-semibold text-center" style="line-height: 0.85">{{ $formatNumber(daysInARow) }}</p>
         <p class="text-sm text-center">{{ $strings.LabelStatsInARow }}</p>
       </div>
     </div>
@@ -183,10 +183,16 @@ export default {
     daysInARow() {
       var count = 0
       while (true) {
-        var _date = this.$addDaysToToday(count * -1)
-        var datestr = this.$formatJsDate(_date, 'yyyy-MM-dd')
+        const _date = this.$addDaysToToday(count * -1 - 1)
+        const datestr = this.$formatJsDate(_date, 'yyyy-MM-dd')
 
         if (!this.listeningStatsDays[datestr] || this.listeningStatsDays[datestr] === 0) {
+          // don't require listening today to count towards days in a row, but do count it if already listened today
+          const today = this.$formatJsDate(new Date(), 'yyyy-MM-dd')
+          if (this.listeningStatsDays[today]) {
+            count++
+          }
+
           return count
         }
         count++

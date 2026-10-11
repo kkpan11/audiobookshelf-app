@@ -1,14 +1,14 @@
 <template>
   <div class="relative">
-    <input v-model="input" ref="input" autofocus :type="type" :disabled="disabled" :readonly="readonly" autocorrect="off" autocapitalize="none" autocomplete="off" :placeholder="placeholder" class="py-2 w-full outline-none bg-primary disabled:text-fg-muted" :class="inputClass" @keyup="keyup" />
+    <input v-model="input" ref="input" :autofocus="autofocus" :type="type" :disabled="disabled" :readonly="readonly" autocorrect="off" autocapitalize="none" autocomplete="off" :placeholder="placeholder" class="py-2 w-full outline-none bg-primary disabled:text-fg-muted" :class="inputClass" @keyup="keyup" />
     <div v-if="prependIcon" class="absolute top-0 left-0 h-full px-2 flex items-center justify-center">
-      <span class="material-icons text-lg">{{ prependIcon }}</span>
+      <span class="material-symbols text-lg">{{ prependIcon }}</span>
     </div>
     <div v-if="clearable && input" class="absolute top-0 right-0 h-full px-2 flex items-center justify-center" @click.stop="clear">
-      <span class="material-icons text-lg">close</span>
+      <span class="material-symbols text-lg">close</span>
     </div>
     <div v-else-if="!clearable && appendIcon" class="absolute top-0 right-0 h-full px-2 flex items-center justify-center">
-      <span class="material-icons text-lg">{{ appendIcon }}</span>
+      <span class="material-symbols text-lg">{{ appendIcon }}</span>
     </div>
   </div>
 </template>
@@ -22,6 +22,10 @@ export default {
     disabled: Boolean,
     readonly: Boolean,
     borderless: Boolean,
+    autofocus: {
+      type: Boolean,
+      default: true
+    },
     bg: {
       type: String,
       default: 'bg'

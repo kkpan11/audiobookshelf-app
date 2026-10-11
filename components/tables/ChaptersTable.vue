@@ -7,7 +7,7 @@
       </div>
       <div class="flex-grow" />
       <div class="h-10 w-10 rounded-full flex justify-center items-center duration-500" :class="expanded ? 'transform rotate-180' : ''">
-        <span class="material-icons text-3xl">expand_more</span>
+        <span class="material-symbols text-3xl">arrow_drop_down</span>
       </div>
     </div>
     <transition name="slide">
@@ -15,6 +15,7 @@
         <tr>
           <th class="text-left">{{ $strings.LabelTitle }}</th>
           <th class="text-center w-16">{{ $strings.LabelStart }}</th>
+          <th class="text-center w-16">{{ $strings.LabelDuration }}</th>
         </tr>
         <tr v-for="chapter in chapters" :key="chapter.id">
           <td>
@@ -22,6 +23,9 @@
           </td>
           <td class="font-mono text-center underline w-16" @click.stop="goToTimestamp(chapter.start)">
             {{ $secondsToTimestamp(chapter.start) }}
+          </td>
+          <td class="font-mono text-center">
+            {{ $secondsToTimestamp(Math.max(0, chapter.end - chapter.start)) }}
           </td>
         </tr>
       </table>

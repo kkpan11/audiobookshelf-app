@@ -6,8 +6,11 @@
           <covers-preview-cover :src="$store.getters['globals/getLibraryItemCoverSrcById'](libraryItemId)" :width="40" :book-cover-aspect-ratio="bookCoverAspectRatio" :show-resolution="false" class="md:hidden" />
         </div>
         <div class="flex-grow px-2">
-          <div class="-mt-0.5 mb-0.5" @click.stop>
-            <nuxt-link :to="`/item/${libraryItemId}`" class="text-sm text-fg underline">{{ podcast.metadata.title }}</nuxt-link>
+          <div class="flex items-center">
+            <div class="-mt-0.5 mb-0.5" @click.stop>
+              <nuxt-link :to="`/item/${libraryItemId}`" class="text-sm text-fg underline">{{ podcast.metadata.title }}</nuxt-link>
+            </div>
+            <widgets-explicit-indicator v-if="podcast.metadata.explicit" />
           </div>
           <p v-if="publishedAt" class="text-xs text-fg-muted">{{ $dateDistanceFromNow(publishedAt) }}</p>
         </div>
@@ -24,26 +27,35 @@
       </div>
 
       <div class="flex items-center pt-2">
-        <div class="h-8 px-4 border border-border hover:bg-white hover:bg-opacity-10 rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-fg text-opacity-40' : ''" @click.stop="playClick">
-          <span v-if="!playerIsStartingForThisMedia" class="material-icons" :class="streamIsPlaying ? '' : 'text-success'">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
-          <svg v-else class="animate-spin" style="width: 24px; height: 24px" viewBox="0 0 24 24">
+        <!-- Play/Pause Button -->
+        <div class="h-9 px-4 border border-border hover:bg-white hover:bg-opacity-10 rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-fg text-opacity-40' : ''" @click.stop="playClick">
+          <span v-if="!playerIsStartingForThisMedia" class="material-symbols text-2xl fill leading-none" :class="streamIsPlaying ? '' : 'text-success'">
+            {{ streamIsPlaying ? 'pause' : 'play_arrow' }}
+          </span>
+          <svg v-else class="animate-spin" style="width: 22px; height: 22px" viewBox="0 0 24 24">
             <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
           </svg>
           <p class="pl-2 pr-1 text-sm font-semibold">{{ timeRemaining }}</p>
         </div>
 
-        <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1 mt-0.5" @click="toggleFinished" />
+        <!-- Read Status Button -->
+        <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1" @click="toggleFinished" />
 
-        <button v-if="!isLocal" class="mx-1.5 mt-1.5" @click.stop="addToPlaylist">
-          <span class="material-icons text-2xl">playlist_add</span>
+        <!-- Add to Playlist Button -->
+        <button v-if="!isLocal" class="mx-1.5" @click.stop="addToPlaylist">
+          <span class="material-symbols text-2xl leading-none">playlist_add</span>
         </button>
 
-        <div v-if="userCanDownload">
-          <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
-          <span v-else-if="!localEpisode" class="material-icons mx-1.5 mt-2 text-xl" :class="downloadItem || pendingDownload ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">{{ downloadItem || pendingDownload ? 'downloading' : 'download' }}</span>
-          <span v-else class="material-icons px-2 text-success text-xl">download_done</span>
+        <!-- Download Section -->
+        <div v-if="userCanDownload" class="flex items-center">
+          <span v-if="isLocal" class="material-symbols px-2 text-success text-2xl leading-none">audio_file</span>
+          <span v-else-if="!localEpisode" class="material-symbols mx-1.5 text-2xl leading-none" :class="downloadItem || pendingDownload ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">
+            {{ downloadItem || pendingDownload ? 'downloading' : 'download' }}
+          </span>
+          <span v-else class="material-symbols px-2 text-success text-2xl leading-none">download_done</span>
         </div>
 
+        <!-- Spacer to push elements left -->
         <div class="flex-grow" />
       </div>
     </div>
@@ -58,6 +70,7 @@
 
 <script>
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
+import CellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
 export default {
   props: {
@@ -80,6 +93,7 @@ export default {
       processing: false
     }
   },
+  mixins: [CellularPermissionHelpers],
   computed: {
     bookCoverAspectRatio() {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
@@ -184,6 +198,10 @@ export default {
     },
     async downloadClick() {
       if (this.downloadItem || this.pendingDownload) return
+
+      const hasPermission = await this.checkCellularPermission('download')
+      if (!hasPermission) return
+
       this.pendingDownload = true
       await this.$hapticsImpact()
       if (this.isIos) {
@@ -259,7 +277,6 @@ export default {
 
         if (this.localEpisode && this.localLibraryItemId) {
           console.log('Play local episode', this.localEpisode.id, this.localLibraryItemId)
-
           this.$eventBus.$emit('play-item', {
             libraryItemId: this.localLibraryItemId,
             episodeId: this.localEpisode.id,
@@ -282,7 +299,11 @@ export default {
         const isFinished = !this.userIsFinished
         const localLibraryItemId = this.isLocal ? this.libraryItemId : this.localLibraryItemId
         const localEpisodeId = this.isLocal ? this.episode.id : this.localEpisode.id
-        const payload = await this.$db.updateLocalMediaProgressFinished({ localLibraryItemId, localEpisodeId, isFinished })
+        const payload = await this.$db.updateLocalMediaProgressFinished({
+          localLibraryItemId,
+          localEpisodeId,
+          isFinished
+        })
         console.log('toggleFinished payload', JSON.stringify(payload))
         if (payload?.error) {
           this.$toast.error(payload?.error || 'Unknown error')

@@ -170,7 +170,6 @@ Vue.prototype.$sanitizeFilename = (input, colonReplacement = ' - ') => {
     .replace(windowsReservedRe, replacement)
     .replace(windowsTrailingRe, replacement)
 
-
   if (sanitized.length > MAX_FILENAME_LEN) {
     var lenToRemove = sanitized.length - MAX_FILENAME_LEN
     var ext = Path.extname(sanitized)
@@ -187,8 +186,7 @@ function xmlToJson(xml) {
   for (const res of xml.matchAll(/(?:<(\w*)(?:\s[^>]*)*>)((?:(?!<\1).)*)(?:<\/\1>)|<(\w*)(?:\s*)*\/>/gm)) {
     const key = res[1] || res[3]
     const value = res[2] && xmlToJson(res[2])
-    json[key] = ((value && Object.keys(value).length) ? value : res[2]) || null
-
+    json[key] = (value && Object.keys(value).length ? value : res[2]) || null
   }
   return json
 }
@@ -230,14 +228,15 @@ Vue.prototype.$sanitizeSlug = (str) => {
   str = str.toLowerCase()
 
   // remove accents, swap ñ for n, etc
-  var from = "àáäâèéëêìíïîòóöôùúüûñçěščřžýúůďťň·/,:;"
-  var to = "aaaaeeeeiiiioooouuuuncescrzyuudtn-----"
+  var from = 'àáäâèéëêìíïîòóöôùúüûñçěščřžýúůďťň·/,:;'
+  var to = 'aaaaeeeeiiiioooouuuuncescrzyuudtn-----'
 
   for (var i = 0, l = from.length; i < l; i++) {
     str = str.replace(new RegExp(from.charAt(i), 'g'), to.charAt(i))
   }
 
-  str = str.replace('.', '-') // replace a dot by a dash
+  str = str
+    .replace('.', '-') // replace a dot by a dash
     .replace(/[^a-z0-9 -_]/g, '') // remove invalid chars
     .replace(/\s+/g, '-') // collapse whitespace and replace by a dash
     .replace(/-+/g, '-') // collapse dashes
@@ -246,9 +245,34 @@ Vue.prototype.$sanitizeSlug = (str) => {
   return str
 }
 
+/**
+ * Compares two semantic versioning strings to determine if the current version meets
+ * or exceeds the minimum version requirement.
+ * Only supports 3 part versions, e.g. "1.2.3"
+ *
+ * @param {string} currentVersion - The current version string to compare, e.g., "1.2.3".
+ * @param {string} minVersion - The minimum version string required, e.g., "1.0.0".
+ * @returns {boolean} - Returns true if the current version is greater than or equal
+ *                      to the minimum version, false otherwise.
+ */
+function isValidVersion(currentVersion, minVersion) {
+  if (!currentVersion || !minVersion) return false
+  const currentParts = currentVersion.split('.').map(Number)
+  const minParts = minVersion.split('.').map(Number)
+
+  for (let i = 0; i < minParts.length; i++) {
+    if (currentParts[i] > minParts[i]) return true
+    if (currentParts[i] < minParts[i]) return false
+  }
+
+  return true
+}
+
 export default ({ store, app }, inject) => {
   const eventBus = new Vue()
   inject('eventBus', eventBus)
+
+  inject('isValidVersion', isValidVersion)
 
   // Set theme
   app.$localStore?.getTheme()?.then((theme) => {
@@ -290,8 +314,8 @@ export default ({ store, app }, inject) => {
     }
     if (!canGoBack) {
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: `Did you want to exit the app?`,
+        title: eventBus.$strings.HeaderConfirm,
+        message: eventBus.$strings.MessageConfirmAppExit
       })
       if (value) {
         App.exitApp()
@@ -310,7 +334,4 @@ export default ({ store, app }, inject) => {
   })
 }
 
-export {
-  encode,
-  decode
-}
+export { encode, decode }

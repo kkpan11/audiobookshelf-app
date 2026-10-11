@@ -4,14 +4,14 @@
 
     <div v-if="!downloadItemParts.length" class="py-6 text-center text-lg">No download item parts</div>
     <template v-for="(itemPart, num) in downloadItemParts">
-      <div :key="itemPart.id" class="w-full">
+      <div :key="`${itemPart.downloadItemId}-${itemPart.id}`" class="w-full">
         <div class="flex">
           <div class="w-14">
-            <span v-if="itemPart.completed" class="material-icons text-success">check_circle_outline</span>
+            <span v-if="itemPart.completed" class="material-symbols text-success">check_circle</span>
             <span v-else class="font-semibold text-fg">{{ Math.round(itemPart.progress) }}%</span>
           </div>
           <div class="flex-grow px-2">
-            <p class="truncate">{{ itemPart.filename }}</p>
+            <p class="break-all">{{ itemPart.filename }}</p>
           </div>
         </div>
 
@@ -40,4 +40,3 @@ export default {
   beforeDestroy() {}
 }
 </script>
-

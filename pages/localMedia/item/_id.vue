@@ -6,9 +6,9 @@
         <div class="flex-grow" />
 
         <button v-if="audioTracks.length && !isPodcast" class="shadow-sm text-success flex items-center justify-center rounded-full mx-2" @click.stop="play">
-          <span class="material-icons" style="font-size: 2rem">play_arrow</span>
+          <span class="material-symbols fill" style="font-size: 2rem">play_arrow</span>
         </button>
-        <span class="material-icons" @click="showItemDialog">more_vert</span>
+        <span class="material-symbols text-2xl" @click="showItemDialog">more_vert</span>
       </div>
 
       <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-fg-muted">{{ $strings.LabelFolder }}: {{ folderName }}</p>
@@ -17,14 +17,17 @@
 
       <div class="w-full max-w-full media-item-container overflow-y-auto overflow-x-hidden relative pb-4" :class="{ 'media-order-changed': orderChanged }">
         <div v-if="!isPodcast && audioTracksCopy.length" class="w-full py-2">
-          <p class="text-base mb-2">Audio Tracks ({{ audioTracks.length }})</p>
+          <div class="flex justify-between items-center mb-2">
+            <p class="text-base">Audio Tracks ({{ audioTracks.length }})</p>
+            <p class="text-xs text-fg-muted px-2">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalAudioSize) }}</p>
+          </div>
 
           <draggable v-model="audioTracksCopy" v-bind="dragOptions" handle=".drag-handle" draggable=".item" tag="div" @start="drag = true" @end="drag = false" @update="draggableUpdate" :disabled="isIos">
             <transition-group type="transition" :name="!drag ? 'dragtrack' : null">
               <template v-for="track in audioTracksCopy">
                 <div :key="track.localFileId" class="flex items-center my-1 item">
                   <div v-if="!isIos" class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
-                    <span class="material-icons drag-handle text-lg text-fg-muted">menu</span>
+                    <span class="material-symbols drag-handle text-lg text-fg-muted">menu</span>
                   </div>
                   <div class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
                     <p class="font-mono font-bold text-xl">{{ track.index }}</p>
@@ -37,7 +40,7 @@
                     <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
                   </div>
                   <div v-if="!isIos" class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-                    <span class="material-icons" @click="showTrackDialog(track)">more_vert</span>
+                    <span class="material-symbols text-2xl" @click="showTrackDialog(track)">more_vert</span>
                   </div>
                 </div>
               </template>
@@ -46,7 +49,10 @@
         </div>
 
         <div v-if="isPodcast" class="w-full py-2">
-          <p class="text-base mb-2">Episodes ({{ episodes.length }})</p>
+          <div class="flex justify-between items-center mb-2">
+            <p class="text-base">Episodes ({{ episodes.length }})</p>
+            <p class="text-xs text-fg-muted px-2">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalEpisodesSize) }}</p>
+          </div>
           <template v-for="episode in episodes">
             <div :key="episode.id" class="flex items-center my-1">
               <div class="w-10 h-12 flex items-center justify-center" style="min-width: 48px">
@@ -60,7 +66,7 @@
                 <p class="text-sm">{{ $elapsedPretty(episode.audioTrack.duration) }}</p>
               </div>
               <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-                <span class="material-icons" @click="showTrackDialog(episode)">more_vert</span>
+                <span class="material-symbols text-2xl" @click="showTrackDialog(episode)">more_vert</span>
               </div>
             </div>
           </template>
@@ -83,22 +89,29 @@
           </div>
         </div>
 
-        <p v-if="otherFiles.length" class="text-lg py-2">Other Files</p>
-        <template v-for="file in otherFiles">
-          <div :key="file.id" class="flex items-center my-1">
-            <div class="w-12 h-12 flex items-center justify-center">
-              <img v-if="(file.mimeType || '').startsWith('image')" :src="getCapImageSrc(file.contentUrl)" class="w-full h-full object-contain" />
-              <span v-else class="material-icons">music_note</span>
-            </div>
-            <div class="flex-grow px-2">
-              <p class="text-sm">{{ file.filename }}</p>
-            </div>
-            <div class="w-24 text-center text-fg-muted" style="min-width: 96px">
-              <p class="text-xs">{{ file.mimeType }}</p>
-              <p class="text-sm">{{ $bytesPretty(file.size) }}</p>
-            </div>
+        <div v-if="otherFiles.length">
+          <div class="flex justify-between items-center py-2">
+            <p class="text-lg">Other Files</p>
+            <p class="text-xs text-fg-muted px-2">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalOtherFilesSize) }}</p>
           </div>
-        </template>
+          <template v-for="file in otherFiles">
+            <div :key="file.id" class="flex items-center my-1">
+              <div class="w-12 h-12 flex items-center justify-center">
+                <img v-if="(file.mimeType || '').startsWith('image')" :src="getCapImageSrc(file.contentUrl)" class="w-full h-full object-contain" />
+                <span v-else class="material-symbols">music_note</span>
+              </div>
+              <div class="flex-grow px-2">
+                <p class="text-sm">{{ file.filename }}</p>
+              </div>
+              <div class="w-24 text-center text-fg-muted" style="min-width: 96px">
+                <p class="text-xs">{{ file.mimeType }}</p>
+                <p class="text-sm">{{ $bytesPretty(file.size) }}</p>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <div class="mt-4 text-sm text-fg-muted">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalLibraryItemSize) }}</div>
       </div>
     </div>
     <div v-else class="px-2 w-full h-full">
@@ -218,17 +231,27 @@ export default {
     },
     dialogItems() {
       if (this.selectedAudioTrack || this.selectedEpisode) {
-        return [
+        const items = [
           {
             text: this.$strings.ButtonDeleteLocalFile,
-            value: 'track-delete'
+            value: 'track-delete',
+            icon: 'delete'
           }
         ]
+        if (this.isPodcast && this.selectedEpisode) {
+          items.unshift({
+            text: this.$strings.ButtonPlayEpisode,
+            value: 'play-episode',
+            icon: 'play_arrow'
+          })
+        }
+        return items
       } else {
         return [
           {
             text: this.$strings.ButtonDeleteLocalItem,
-            value: 'delete'
+            value: 'delete',
+            icon: 'delete'
           }
         ]
       }
@@ -236,6 +259,18 @@ export default {
     playerIsStartingPlayback() {
       // Play has been pressed and waiting for native play response
       return this.$store.state.playerIsStartingPlayback
+    },
+    totalAudioSize() {
+      return this.audioTracks.reduce((acc, item) => (item.metadata ? acc + item.metadata.size : acc), 0)
+    },
+    totalEpisodesSize() {
+      return this.episodes.reduce((acc, item) => acc + item.size, 0)
+    },
+    totalOtherFilesSize() {
+      return this.otherFiles.reduce((acc, item) => acc + item.size, 0)
+    },
+    totalLibraryItemSize() {
+      return this.localFiles.reduce((acc, item) => acc + item.size, 0)
     }
   },
   methods: {
@@ -291,6 +326,19 @@ export default {
     getCapImageSrc(contentUrl) {
       return Capacitor.convertFileSrc(contentUrl)
     },
+    async playEpisode() {
+      if (!this.selectedEpisode) return
+      if (this.playerIsStartingPlayback) return
+      await this.$hapticsImpact()
+      this.$store.commit('setPlayerIsStartingPlayback', this.selectedEpisode.serverEpisodeId)
+
+      this.$eventBus.$emit('play-item', {
+        libraryItemId: this.localLibraryItemId,
+        episodeId: this.selectedEpisode.id,
+        serverLibraryItemId: this.libraryItemId,
+        serverEpisodeId: this.selectedEpisode.serverEpisodeId
+      })
+    },
     async dialogAction(action) {
       console.log('Dialog action', action)
       await this.$hapticsImpact()
@@ -300,6 +348,8 @@ export default {
       } else if (action == 'track-delete') {
         if (this.isPodcast) this.deleteEpisode()
         else this.deleteTrack()
+      } else if (action == 'play-episode') {
+        this.playEpisode()
       }
       this.showDialog = false
     },
@@ -319,7 +369,7 @@ export default {
         confirmMessage += ' The file on the server will be unaffected.'
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: confirmMessage
       })
       if (value) {
@@ -345,7 +395,7 @@ export default {
         confirmMessage += ' The file on the server will be unaffected.'
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: confirmMessage
       })
       if (value) {
@@ -362,7 +412,7 @@ export default {
         confirmMessage += ' The files on the server and your progress will be unaffected.'
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: confirmMessage
       })
       if (value) {

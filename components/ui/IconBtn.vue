@@ -1,11 +1,11 @@
 <template>
-  <button class="icon-btn rounded-md flex items-center justify-center h-9 w-9 relative" @mousedown.prevent :disabled="disabled || loading" :class="className" @click="clickBtn">
+  <button class="icon-btn rounded-md flex items-center justify-center h-9 w-9 relative" :disabled="disabled || loading" :class="className" :type="type" @mousedown.prevent @click="clickBtn">
     <div v-if="loading" class="text-fg absolute top-0 left-0 w-full h-full flex items-center justify-center text-opacity-100">
       <svg class="animate-spin" style="width: 24px; height: 24px" viewBox="0 0 24 24">
         <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
       </svg>
     </div>
-    <span v-else :class="outlined ? 'material-icons-outlined' : 'material-icons'" :style="{ fontSize }">{{ icon }}</span>
+    <span v-else class="material-symbols text-2xl" :class="{ fill: !outlined }" :style="{ fontSize }">{{ icon }}</span>
   </button>
 </template>
 
@@ -13,6 +13,10 @@
 export default {
   props: {
     icon: String,
+    type: {
+      type: String,
+      default: 'button'
+    },
     disabled: Boolean,
     bgColor: {
       type: String,

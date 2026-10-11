@@ -23,7 +23,7 @@
       </div>
     </div>
 
-    <div class="fixed left-0 h-8 w-full bg-bg px-4 flex items-center text-fg-muted" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
+    <div class="fixed left-0 h-8 w-full bg-bg px-4 flex items-center text-fg-muted transition-transform" :class="showingToolbar ? 'translate-y-0' : isPlayerOpen ? 'translate-y-[120px]' : 'translate-y-32'" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
       <div class="flex-grow" />
       <p class="text-xs">{{ page }} / {{ numPages }}</p>
     </div>
@@ -49,7 +49,8 @@ export default {
       default: () => {}
     },
     isLocal: Boolean,
-    keepProgress: Boolean
+    keepProgress: Boolean,
+    showingToolbar: Boolean
   },
   data() {
     return {
@@ -76,9 +77,6 @@ export default {
     }
   },
   computed: {
-    userToken() {
-      return this.$store.getters['user/getToken']
-    },
     libraryItemId() {
       return this.libraryItem?.id
     },
@@ -244,11 +242,9 @@ export default {
     async extract() {
       this.loading = true
 
+      // TODO: Handle JWT auth refresh
       const buff = await this.$axios.$get(this.url, {
-        responseType: 'blob',
-        headers: {
-          Authorization: `Bearer ${this.userToken}`
-        }
+        responseType: 'blob'
       })
 
       const archive = await Archive.open(buff)
@@ -349,7 +345,7 @@ export default {
       }
     },
     parseFilenames(filenames) {
-      const acceptableImages = ['.jpeg', '.jpg', '.png']
+      const acceptableImages = ['.jpeg', '.jpg', '.png', '.webp']
       var imageFiles = filenames.filter((f) => {
         return acceptableImages.includes((Path.extname(f) || '').toLowerCase())
       })
@@ -372,14 +368,12 @@ export default {
 
 <style scoped>
 #comic-reader {
-  height: calc(100% - 36px);
-  max-height: calc(100% - 36px);
-  padding-top: 36px;
+  height: 100%;
+  max-height: 100%;
 }
 .reader-player-open #comic-reader {
-  height: calc(100% - 156px);
-  max-height: calc(100% - 156px);
-  padding-top: 36px;
+  height: calc(100% - 120px);
+  max-height: calc(100% - 120px);
 }
 
 .comicimg {

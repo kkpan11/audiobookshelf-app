@@ -2,7 +2,7 @@
   <div id="epub-frame" class="w-full">
     <div id="viewer" class="h-full w-full"></div>
 
-    <div class="fixed left-0 h-8 w-full px-4 flex items-center" :class="isLightTheme ? 'bg-white text-black' : 'bg-[#232323] text-white/80'" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
+    <div class="fixed left-0 h-8 w-full px-4 flex items-center" :class="isLightTheme ? 'bg-white text-black' : isDarkTheme ? 'bg-[#232323] text-white/80' : 'bg-black text-white/80'" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
       <p v-if="totalLocations" class="text-xs text-slate-600">Location {{ currentLocationNum }} of {{ totalLocations }}</p>
       <div class="flex-grow" />
       <p class="text-xs">{{ progress }}%</p>
@@ -34,22 +34,22 @@ export default {
       currentLocationNum: 0,
       currentLocationCfi: null,
       inittingDisplay: true,
+      isRefreshingUI: false,
       ereaderSettings: {
         theme: 'dark',
+        font: 'serif',
         fontScale: 100,
-        lineSpacing: 115
+        lineSpacing: 115,
+        textStroke: 0
       }
     }
   },
   watch: {
     isPlayerOpen() {
-      this.updateHeight()
+      this.refreshUI()
     }
   },
   computed: {
-    userToken() {
-      return this.$store.getters['user/getToken']
-    },
     /** @returns {string} */
     libraryItemId() {
       return this.libraryItem?.id
@@ -103,16 +103,21 @@ export default {
     isLightTheme() {
       return this.ereaderSettings.theme === 'light'
     },
+    isDarkTheme() {
+      return this.ereaderSettings.theme === 'dark'
+    },
     themeRules() {
       const isDark = this.ereaderSettings.theme === 'dark'
-      const fontColor = isDark ? '#fff' : '#000'
-      const backgroundColor = isDark ? 'rgb(35 35 35)' : 'rgb(255, 255, 255)'
+      const isBlack = this.ereaderSettings.theme === 'black'
+      const fontColor = isDark ? '#fff' : isBlack ? '#fff' : '#000'
+      const backgroundColor = isDark ? 'rgb(35 35 35)' : isBlack ? 'rgb(0 0 0)' : 'rgb(255, 255, 255)'
 
       return {
         '*': {
           color: `${fontColor}!important`,
           'background-color': `${backgroundColor}!important`,
-          'line-height': this.ereaderSettings.lineSpacing + '%!important'
+          'line-height': this.ereaderSettings.lineSpacing + '%!important',
+          '-webkit-text-stroke': this.ereaderSettings.textStroke / 100 + 'px ' + fontColor + '!important'
         },
         a: {
           color: `${fontColor}!important`
@@ -130,15 +135,11 @@ export default {
 
       const fontScale = settings.fontScale || 100
       this.rendition.themes.fontSize(`${fontScale}%`)
+      this.rendition.themes.font(settings.font)
       this.rendition.spread(settings.spread || 'auto')
     },
     goToChapter(href) {
       return this.rendition?.display(href)
-    },
-    updateHeight() {
-      if (this.rendition && this.rendition.resize) {
-        this.rendition.resize(window.innerWidth, window.innerHeight - this.readerHeightOffset)
-      }
     },
     prev() {
       if (this.rendition) {
@@ -296,15 +297,26 @@ export default {
 
       /** @type {EpubReader} */
       const reader = this
+
+      // Use axios to make request because we have token refresh logic in interceptor
+      const customRequest = async (url) => {
+        try {
+          return this.$axios.$get(url, {
+            responseType: 'arraybuffer'
+          })
+        } catch (error) {
+          console.error('EpubReader.initEpub customRequest failed:', error)
+          throw error
+        }
+      }
+
       console.log('[EpubReader] initEpub', reader.url)
       /** @type {ePub.Book} */
       reader.book = new ePub(reader.url, {
         width: window.innerWidth,
         height: window.innerHeight - this.readerHeightOffset,
         openAs: 'epub',
-        requestHeaders: {
-          Authorization: `Bearer ${this.userToken}`
-        }
+        requestMethod: this.isLocal ? null : customRequest
       })
 
       /** @type {ePub.Rendition} */
@@ -382,13 +394,53 @@ export default {
       this.rendition.getContents().forEach((c) => {
         c.addStylesheetRules(this.themeRules)
       })
+    },
+    async screenOrientationChange() {
+      if (this.isRefreshingUI) return
+      this.isRefreshingUI = true
+      const windowWidth = window.innerWidth
+      this.refreshUI()
+
+      // Window width does not always change right away. Wait up to 250ms for a change.
+      // iPhone 10 on iOS 16 took between 100 - 200ms to update when going from portrait to landscape
+      //   but landscape to portrait was immediate
+      for (let i = 0; i < 5; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        if (window.innerWidth !== windowWidth) {
+          this.refreshUI()
+          break
+        }
+      }
+
+      this.isRefreshingUI = false
+    },
+    refreshUI() {
+      if (this.rendition?.resize) {
+        this.rendition.resize(window.innerWidth, window.innerHeight - this.readerHeightOffset)
+      }
     }
-  },
-  beforeDestroy() {
-    this.book?.destroy()
   },
   mounted() {
     this.initEpub()
+
+    if (screen.orientation) {
+      // Not available on ios
+      screen.orientation.addEventListener('change', this.screenOrientationChange)
+    } else {
+      document.addEventListener('orientationchange', this.screenOrientationChange)
+    }
+    window.addEventListener('resize', this.screenOrientationChange)
+  },
+  beforeDestroy() {
+    this.book?.destroy()
+
+    if (screen.orientation) {
+      // Not available on ios
+      screen.orientation.removeEventListener('change', this.screenOrientationChange)
+    } else {
+      document.removeEventListener('orientationchange', this.screenOrientationChange)
+    }
+    window.removeEventListener('resize', this.screenOrientationChange)
   }
 }
 </script>

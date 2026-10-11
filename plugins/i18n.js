@@ -1,42 +1,71 @@
-import Vue from "vue"
+import Vue from 'vue'
+import { Capacitor } from '@capacitor/core'
+import { AbsDownloader, AbsFileSystem } from '@/plugins/capacitor'
 import enUsStrings from '../strings/en-us.json'
 
 const defaultCode = 'en-us'
 let $localStore = null
 
 const languageCodeMap = {
-  'cs': { label: 'Čeština', dateFnsLocale: 'cs' },
-  'da': { label: 'Dansk', dateFnsLocale: 'da' },
-  'de': { label: 'Deutsch', dateFnsLocale: 'de' },
+  ar: { label: 'عربي', dateFnsLocale: 'ar' },
+  be: { label: 'Беларуская', dateFnsLocale: 'be' },
+  bg: { label: 'Български', dateFnsLocale: 'bg' },
+  bn: { label: 'বাংলা', dateFnsLocale: 'bn' },
+  ca: { label: 'Català', dateFnsLocale: 'ca' },
+  cs: { label: 'Čeština', dateFnsLocale: 'cs' },
+  da: { label: 'Dansk', dateFnsLocale: 'da' },
+  de: { label: 'Deutsch', dateFnsLocale: 'de' },
   'en-us': { label: 'English', dateFnsLocale: 'enUS' },
-  'es': { label: 'Español', dateFnsLocale: 'es' },
-  'fr': { label: 'Français', dateFnsLocale: 'fr' },
-  'hr': { label: 'Hrvatski', dateFnsLocale: 'hr' },
-  'it': { label: 'Italiano', dateFnsLocale: 'it' },
-  'lt': { label: 'Lietuvių', dateFnsLocale: 'lt' },
-  'hu': { label: 'Magyar', dateFnsLocale: 'hu' },
-  'nl': { label: 'Nederlands', dateFnsLocale: 'nl' },
-  'no': { label: 'Norsk', dateFnsLocale: 'no' },
-  'pl': { label: 'Polski', dateFnsLocale: 'pl' },
+  es: { label: 'Español', dateFnsLocale: 'es' },
+  fi: { label: 'Suomi', dateFnsLocale: 'fi' },
+  fr: { label: 'Français', dateFnsLocale: 'fr' },
+  he: { label: 'עברית', dateFnsLocale: 'he' },
+  hr: { label: 'Hrvatski', dateFnsLocale: 'hr' },
+  it: { label: 'Italiano', dateFnsLocale: 'it' },
+  lt: { label: 'Lietuvių', dateFnsLocale: 'lt' },
+  hu: { label: 'Magyar', dateFnsLocale: 'hu' },
+  ko: { label: '한국어', dateFnsLocale: 'ko' },
+  nl: { label: 'Nederlands', dateFnsLocale: 'nl' },
+  no: { label: 'Norsk', dateFnsLocale: 'no' },
+  pl: { label: 'Polski', dateFnsLocale: 'pl' },
   'pt-br': { label: 'Português (Brasil)', dateFnsLocale: 'ptBR' },
-  'ru': { label: 'Русский', dateFnsLocale: 'ru' },
-  'sv': { label: 'Svenska', dateFnsLocale: 'sv' },
-  'uk': { label: 'Українська', dateFnsLocale: 'uk' },
+  ru: { label: 'Русский', dateFnsLocale: 'ru' },
+  sk: { label: 'Slovenčina', dateFnsLocale: 'sk' },
+  sl: { label: 'Slovenščina', dateFnsLocale: 'sl' },
+  sv: { label: 'Svenska', dateFnsLocale: 'sv' },
+  tr: { label: 'Türkçe', dateFnsLocale: 'tr' },
+  uk: { label: 'Українська', dateFnsLocale: 'uk' },
   'vi-vn': { label: 'Tiếng Việt', dateFnsLocale: 'vi' },
-  'zh-cn': { label: '简体中文 (Simplified Chinese)', dateFnsLocale: 'zhCN' },
+  'zh-cn': { label: '简体中文 (Simplified Chinese)', dateFnsLocale: 'zhCN' }
 }
 
 function supplant(str, subs) {
   // source: http://crockford.com/javascript/remedial.html
-  return str.replace(/{([^{}]*)}/g,
-    function (a, b) {
-      var r = subs[b]
-      return typeof r === 'string' || typeof r === 'number' ? r : a
-    }
-  )
+  return str.replace(/{([^{}]*)}/g, function (a, b) {
+    var r = subs[b]
+    return typeof r === 'string' || typeof r === 'number' ? r : a
+  })
 }
 
-Vue.prototype.$languageCodeOptions = Object.keys(languageCodeMap).map(code => {
+function syncDownloadNotificationStrings() {
+  if (Capacitor.getPlatform() !== 'android') return
+  AbsDownloader.setDownloadNotificationStrings({
+    preparing: Vue.prototype.$strings.MessagePreparingDownloads,
+    downloadingFile: Vue.prototype.$strings.MessageDownloadingFile,
+    waitingForStorage: Vue.prototype.$strings.MessageWaitingForAvailableStorage,
+    downloads: Vue.prototype.$strings.HeaderDownloads,
+    cancel: Vue.prototype.$strings.ButtonCancel
+  }).catch((error) => console.warn('Failed to update download notification strings', error))
+  AbsFileSystem.setFolderPickerStrings({
+    writeAccessRequired: Vue.prototype.$strings.MessageStorageWriteAccessRequired,
+    allow: Vue.prototype.$strings.ButtonAllow,
+    cancel: Vue.prototype.$strings.ButtonCancel,
+    accessDenied: Vue.prototype.$strings.MessageStorageAccessDenied,
+    permissionDenied: Vue.prototype.$strings.MessageStoragePermissionDenied
+  }).catch((error) => console.warn('Failed to update folder picker strings', error))
+}
+
+Vue.prototype.$languageCodeOptions = Object.keys(languageCodeMap).map((code) => {
   return {
     text: languageCodeMap[code].label,
     value: code
@@ -60,18 +89,24 @@ Vue.prototype.$getString = (key, subs) => {
   return Vue.prototype.$strings[key]
 }
 
+Vue.prototype.$formatNumber = (num) => {
+  return Intl.NumberFormat(Vue.prototype.$languageCodes.current).format(num)
+}
+
 var translations = {
   [defaultCode]: enUsStrings
 }
 
 function loadTranslationStrings(code) {
   return new Promise((resolve) => {
-    import(`../strings/${code}`).then((fileContents) => {
-      resolve(fileContents.default)
-    }).catch((error) => {
-      console.error('Failed to load i18n strings', code, error)
-      resolve(null)
-    })
+    import(`../strings/${code}`)
+      .then((fileContents) => {
+        resolve(fileContents.default)
+      })
+      .catch((error) => {
+        console.error('Failed to load i18n strings', code, error)
+        resolve(null)
+      })
   })
 }
 
@@ -82,7 +117,7 @@ async function loadi18n(code) {
     return false
   }
 
-  const strings = translations[code] || await loadTranslationStrings(code)
+  const strings = translations[code] || (await loadTranslationStrings(code))
   if (!strings) {
     console.warn(`Invalid lang code ${code}`)
     return false
@@ -97,6 +132,7 @@ async function loadi18n(code) {
   }
 
   Vue.prototype.$setDateFnsLocale(languageCodeMap[code].dateFnsLocale)
+  syncDownloadNotificationStrings()
 
   this.$eventBus.$emit('change-lang', code)
   return true
@@ -134,5 +170,5 @@ async function initialize() {
 
 export default ({ app, store }, inject) => {
   $localStore = app.$localStore
-  initialize()
+  initialize().finally(syncDownloadNotificationStrings)
 }

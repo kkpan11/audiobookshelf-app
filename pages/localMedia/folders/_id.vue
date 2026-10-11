@@ -4,7 +4,7 @@
       <p class="text-base font-semibold">{{ $strings.LabelFolder }}: {{ folderName }}</p>
       <div class="flex-grow" />
 
-      <span v-if="dialogItems.length" class="material-icons" @click="showDialog = true">more_vert</span>
+      <span v-if="dialogItems.length" class="material-symbols text-2xl" @click="showDialog = true">more_vert</span>
     </div>
 
     <p class="text-sm mb-4 text-fg-muted">{{ $strings.LabelMediaType }}: {{ mediaType }}</p>
@@ -22,7 +22,7 @@
             <p class="text-xs text-fg-muted">{{ getLocalLibraryItemSubText(localLibraryItem) }}</p>
           </div>
           <div class="w-12 h-12 flex items-center justify-center">
-            <span class="material-icons text-xl text-fg-muted">arrow_right</span>
+            <span class="material-symbols text-xl text-fg-muted">arrow_right</span>
           </div>
         </nuxt-link>
       </template>
@@ -100,7 +100,7 @@ export default {
         deleteMessage = `Are you sure you want to remove this folder and ${this.localLibraryItems.length} items? (does not delete anything in your file system)`
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: deleteMessage
       })
       if (value) {
